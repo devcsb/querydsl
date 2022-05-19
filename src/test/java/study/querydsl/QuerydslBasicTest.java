@@ -151,7 +151,7 @@ public class QuerydslBasicTest {
         List<Member> result = queryFactory
                 .selectFrom(member)
                 .where(member.age.eq(100))
-                .orderBy(member.age.desc(), member.username.asc().nullsLast())
+                .orderBy(member.age.desc(), member.username.asc().nullsLast()) //null값은 마지막에
                 .fetch();
 
         //then
@@ -163,5 +163,54 @@ public class QuerydslBasicTest {
         assertThat(memberNull.getUsername()).isNull();
     }
 
+    /**
+     * 조회 건수 제한하여 페이징
+     */
+    @Test
+    public void paging1() throws Exception {
+        //given
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .orderBy(member.username.desc())
+                .offset(1)
+                .limit(2)
+                .fetch();
+        //then
+        assertThat(result.size()).isEqualTo(2);
+    }
+
+    /**
+     * 전체 조회 수가 필요할 때 fetchResults를 사용한 페이징
+     */
+    @Test
+    public void paging2() throws Exception {
+        //given
+        QueryResults<Member> queryResults = queryFactory
+                .selectFrom(member)
+                .orderBy(member.username.desc())
+                .offset(1)
+                .limit(2)
+                .fetchResults();  //deprecated. 따로 count 쿼리를 날리자!
+
+        //then
+        assertThat(queryResults.getTotal()).isEqualTo(4);
+        assertThat(queryResults.getLimit()).isEqualTo(2);
+        assertThat(queryResults.getOffset()).isEqualTo(1);
+        assertThat(queryResults.getResults().size()).isEqualTo(2);
+    }
+
+    /**
+     * 따로 작성하는 count 쿼리 예제.
+     */
+    @Test
+    public void count() {
+        Long totalCount = queryFactory
+//                .select(Wildcard.count) // select count(*)
+                .select(member.count()) // select count(member.id)
+                .from(member)
+                .fetchOne(); //숫자 하나이므로 fetchOne()
+
+        System.out.println("totalCount = " + totalCount);
+    }
 
 }
