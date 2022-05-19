@@ -13,6 +13,7 @@ import study.querydsl.entity.Team;
 import javax.persistence.EntityManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static study.querydsl.entity.QMember.member;
 
 @SpringBootTest
 @Transactional
@@ -59,12 +60,12 @@ public class QuerydslBasicTest {
     @Test
     public void startQuesydsl() throws Exception{
 //        JPAQueryFactory queryFactory = new JPAQueryFactory(em);  // 1. JPAQueryFactory 생성 .. 필드로 빼내고, beforeg함수에서 생성
-        QMember m = new QMember("m");  // 2. Qmember 생성. // 실무에선 이미 만들어져 있는 QMember member를 사용함.
+//        QMember m = new QMember("m1");  // 2. Qmember 생성. // 같은 테이블을 join 하는 경우에만 구분을 위해 이렇게 선언해서 사용하고, 보통은 기본 QType을 사용
 
         Member findMember = queryFactory
-                .select(m)
-                .from(m)
-                .where(m.username.eq("member1"))  // Querydsl이 JDBC prepareStatement 로 자동으로 파라미터 바인딩 해준다.
+                .select(member)  // 따로 선언 없이 기본 Q-type인 Qmember.member를 static import하여 사용.
+                .from(member)
+                .where(member.username.eq("member1"))  // Querydsl이 JDBC prepareStatement 로 자동으로 파라미터 바인딩 해준다.
                 .fetchOne();
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
