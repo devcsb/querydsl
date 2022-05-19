@@ -25,7 +25,7 @@ public class QuerydslBasicTest {
 
 
     @BeforeEach
-    public  void before() {
+    public void before() {
         queryFactory = new JPAQueryFactory(em);  //EntityManager 자체에서 멀티쓰레드 동시성 이슈 없이 동작하도록 설계되어있으므로, 필드로 빼내서 사용해도 무방하다.
 
         Team teamA = new Team("teamA");
@@ -45,7 +45,7 @@ public class QuerydslBasicTest {
     }
 
     @Test
-    public void startJPQL() throws Exception{
+    public void startJPQL() throws Exception {
         //member1을 찾아라.
         String qlString = "select m from Member m" +
                 " where m.username = :username";
@@ -58,7 +58,7 @@ public class QuerydslBasicTest {
     }
 
     @Test
-    public void startQuesydsl() throws Exception{
+    public void startQuesydsl() throws Exception {
 //        JPAQueryFactory queryFactory = new JPAQueryFactory(em);  // 1. JPAQueryFactory 생성 .. 필드로 빼내고, beforeg함수에서 생성
 //        QMember m = new QMember("m1");  // 2. Qmember 생성. // 같은 테이블을 join 하는 경우에만 구분을 위해 이렇게 선언해서 사용하고, 보통은 기본 QType을 사용
 
@@ -66,6 +66,33 @@ public class QuerydslBasicTest {
                 .select(member)  // 따로 선언 없이 기본 Q-type인 Qmember.member를 static import하여 사용.
                 .from(member)
                 .where(member.username.eq("member1"))  // Querydsl이 JDBC prepareStatement 로 자동으로 파라미터 바인딩 해준다.
+                .fetchOne();
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    @Test
+    public void search() {
+        Member findMember = queryFactory
+                .selectFrom(member)  //select 와 From을 합친 문법
+                .where(
+                        member.username.eq("member1")
+                                .and(member.age.eq(10))  // 방법 1 : and로 체이닝해서 조건을 주는 방법.
+                )
+                .fetchOne();
+
+        assertThat(findMember.getUsername()).isEqualTo("member1");
+    }
+
+    @Test
+    public void searchAndParam() {
+        Member findMember = queryFactory
+                .selectFrom(member)  //select 와 From을 합친 문법
+                .where(
+                        // 방법 2 : 쉼표로 끊어서, 파라미터를 가변적으로 줄 수 있다. 값에 null이 있으면 null을 찾는 조건이 무시되므로, 동적쿼리 작성에 용이하다.
+                        member.username.eq("member1"),
+                        member.age.eq(10)
+                )
                 .fetchOne();
 
         assertThat(findMember.getUsername()).isEqualTo("member1");
