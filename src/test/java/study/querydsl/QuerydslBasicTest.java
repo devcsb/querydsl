@@ -2,6 +2,7 @@ package study.querydsl;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.junit.jupiter.api.BeforeEach;
@@ -480,14 +481,14 @@ public class QuerydslBasicTest {
                 ))
                 .fetch();
 
-        assertThat(result).extracting("age").containsExactly(20,30, 40);
+        assertThat(result).extracting("age").containsExactly(20, 30, 40);
     }
 
     /**
      * select절에 서브쿼리 사용.
      */
     @Test
-    public void selectSubquery() throws Exception{
+    public void selectSubquery() throws Exception {
         //given
         QMember memberSub = new QMember("memberSub");  //select 하는 member와 alias가 겹치면 안되므로, 다른 별칭을 가지는 QMember 직접 생성
 
@@ -505,16 +506,61 @@ public class QuerydslBasicTest {
     }
 
     /*
-    * JPA JPQL의 한계로, From절의 서브쿼리(인라인뷰)는 사용할 수 없다.
-    *
-    * from 절의 서브쿼리 해결방안
-    * 1. 서브쿼리를 join으로 변경한다.(대부분 변경 가능)
-    * 2. 어플리케이션에서 쿼리를 2개로 분리해서 실행한다.
-    * 3. nativeSQL을 사용한다.
-    *
-    * 화면에 맞춘 비즈니스 로직을 SQL문에 녹여내다보면 자연스레 From절 서브쿼리를 사용하게 되는데, 잘못된 방법이다.
-    * DB는 데이터를 최소화해서 필터링, 그루핑해서 퍼올리는 용도로만 써야한다.
-    * 복잡한 한방쿼리보다 쿼리를 여러번 나눠서 보내는 것이 훨씬 낫다.
-    * */
+     * JPA JPQL의 한계로, From절의 서브쿼리(인라인뷰)는 사용할 수 없다.
+     *
+     * from 절의 서브쿼리 해결방안
+     * 1. 서브쿼리를 join으로 변경한다.(대부분 변경 가능)
+     * 2. 어플리케이션에서 쿼리를 2개로 분리해서 실행한다.
+     * 3. nativeSQL을 사용한다.
+     *
+     * 화면에 맞춘 비즈니스 로직을 SQL문에 녹여내다보면 자연스레 From절 서브쿼리를 사용하게 되는데, 잘못된 방법이다.
+     * DB는 데이터를 최소화해서 필터링, 그루핑해서 퍼올리는 용도로만 써야한다.
+     * 복잡한 한방쿼리보다 쿼리를 여러번 나눠서 보내는 것이 훨씬 낫다.
+     * */
+
+    /**
+     * Case 문
+     * select, 조건절(where), order by에서 사용 가능
+     * 단순한 조건의 경우. QType의 필드값에서. when ~ then
+     */
+    @Test
+    public void basicCase() throws Exception {
+        List<String> result = queryFactory
+                .select(member.age
+                        .when(10).then("열살")
+                        .when(20).then("스무살")
+                        .otherwise("기타"))
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    /**
+     * 복잡한 조건의 경우. new CaseBuilder() 생성하여 . when(QType.속성~) ~ then ~
+     *
+     *  ********** case문 대신, row data를 가져와서 애플리케이션 단에서 처리하자! **********
+     */
+    @Test
+    public void complexCase() throws Exception{
+
+        List<String> result = queryFactory
+                .select(new CaseBuilder()
+                        .when(member.age.between(0, 20)).then("0~20살")
+                        .when(member.age.between(21, 30)).then("21살~30살")
+                        .otherwise("기타"))
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+
 
 }
+
+
