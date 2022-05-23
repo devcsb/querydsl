@@ -2,6 +2,7 @@ package study.querydsl;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.entity.Member;
+import study.querydsl.entity.QMember;
 import study.querydsl.entity.Team;
 
 import javax.persistence.EntityManager;
@@ -19,6 +21,7 @@ import javax.persistence.PersistenceUnit;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static study.querydsl.entity.QMember.*;
 import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.*;
 
@@ -418,5 +421,100 @@ public class QuerydslBasicTest {
         assertThat(loaded).as("페치 조인 적용").isTrue();
     }
 
+    /**
+     * 서브 쿼리 예제 [com.querydsl.jpa.JPAExpressions 사용]
+     * 나이가 가장 많은 회원 조회 (eq 사용) eq == equal == "="
+     */
+    @Test
+    public void subQuery() throws Exception {
+
+        QMember memberSub = new QMember("memberSub");  //select 하는 member와 alias가 겹치면 안되므로, 다른 별칭을 가지는 QMember 직접 생성
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.eq(
+                        JPAExpressions  //static import 가능
+                                .select(memberSub.age.max())
+                                .from(memberSub)
+                ))
+                .fetch();
+
+        assertThat(result).extracting("age").containsExactly(40);
+    }
+
+    /**
+     * 나이가 평균 나이 이상인 회원 (goe 사용) goe == grater or equal == ">="
+     */
+    @Test
+    public void subQueryGoe() throws Exception {
+
+        QMember memberSub = new QMember("memberSub");  //select 하는 member와 alias가 겹치면 안되므로, 다른 별칭을 가지는 QMember 직접 생성
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.goe(
+                        JPAExpressions  // static import 가능
+                                .select(memberSub.age.avg())
+                                .from(memberSub)
+                ))
+                .fetch();
+
+        assertThat(result).extracting("age").containsExactly(30, 40);
+    }
+
+    /**
+     * 서브쿼리 여러 건 처리 (in 사용)
+     */
+    @Test
+    public void subQueryIn() throws Exception {
+
+        QMember memberSub = new QMember("memberSub");  //select 하는 member와 alias가 겹치면 안되므로, 다른 별칭을 가지는 QMember 직접 생성
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .where(member.age.in(
+                        JPAExpressions  // static import 가능
+                                .select(memberSub.age)
+                                .from(memberSub)
+                                .where(memberSub.age.gt(10))
+                ))
+                .fetch();
+
+        assertThat(result).extracting("age").containsExactly(20,30, 40);
+    }
+
+    /**
+     * select절에 서브쿼리 사용.
+     */
+    @Test
+    public void selectSubquery() throws Exception{
+        //given
+        QMember memberSub = new QMember("memberSub");  //select 하는 member와 alias가 겹치면 안되므로, 다른 별칭을 가지는 QMember 직접 생성
+
+        List<Tuple> result = queryFactory
+                .select(member.username,
+                        JPAExpressions  // static import 가능
+                                .select(memberSub.age.avg())
+                                .from(memberSub))
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+    }
+
+    /*
+    * JPA JPQL의 한계로, From절의 서브쿼리(인라인뷰)는 사용할 수 없다.
+    *
+    * from 절의 서브쿼리 해결방안
+    * 1. 서브쿼리를 join으로 변경한다.(대부분 변경 가능)
+    * 2. 어플리케이션에서 쿼리를 2개로 분리해서 실행한다.
+    * 3. nativeSQL을 사용한다.
+    *
+    * 화면에 맞춘 비즈니스 로직을 SQL문에 녹여내다보면 자연스레 From절 서브쿼리를 사용하게 되는데, 잘못된 방법이다.
+    * DB는 데이터를 최소화해서 필터링, 그루핑해서 퍼올리는 용도로만 써야한다.
+    * 복잡한 한방쿼리보다 쿼리를 여러번 나눠서 보내는 것이 훨씬 낫다.
+    * */
 
 }
