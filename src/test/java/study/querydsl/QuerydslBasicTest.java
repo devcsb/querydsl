@@ -3,13 +3,14 @@ package study.querydsl;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
@@ -18,13 +19,11 @@ import study.querydsl.entity.Team;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
-
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static study.querydsl.entity.QMember.*;
 import static study.querydsl.entity.QMember.member;
-import static study.querydsl.entity.QTeam.*;
+import static study.querydsl.entity.QTeam.team;
 
 @SpringBootTest
 @Transactional
@@ -540,11 +539,11 @@ public class QuerydslBasicTest {
 
     /**
      * 복잡한 조건의 경우. new CaseBuilder() 생성하여 . when(QType.속성~) ~ then ~
-     *
-     *  ********** case문 대신, row data를 가져와서 애플리케이션 단에서 처리하자! **********
+     * <p>
+     * ********** case문 대신, row data를 가져와서 애플리케이션 단에서 처리하자! **********
      */
     @Test
-    public void complexCase() throws Exception{
+    public void complexCase() throws Exception {
 
         List<String> result = queryFactory
                 .select(new CaseBuilder()
@@ -559,7 +558,69 @@ public class QuerydslBasicTest {
         }
     }
 
+    /**
+     * 예를 들어서 다음과 같은 임의의 순서로 회원을 출력하고 싶다면?
+     * 1. 0 ~ 30살이 아닌 회원을 가장 먼저 출력
+     * 2. 0 ~ 20살 회원 출력
+     * 3. 21 ~ 30살 회원 출력
+     */
+    @Test
+    public void orderByCase() throws Exception{
 
+        NumberExpression<Integer> rankPath = new CaseBuilder()
+                .when(member.age.between(0, 20)).then(2)
+                .when(member.age.between(21, 30)).then(1)
+                .otherwise(3);  // rankPath 조건을 변수로 선언
+
+        List<Tuple> result = queryFactory
+                .select(member.username, member.age, rankPath)  //select절에서 사용
+                .from(member)
+                .orderBy(rankPath.desc())  //orderBy절에서 사용
+                .fetch();
+
+        for (Tuple tuple : result) {
+            String username = tuple.get(member.username);
+            Integer age = tuple.get(member.age);
+            Integer rank = tuple.get(rankPath);
+            System.out.println("username = " + username + " age = " + age + " rank = "
+                    + rank);
+        }
+    }
+
+    /**
+     * 상수를 가져오기 Expressions.constant(xxx) 사용
+     */
+    @Test
+    public void constant() throws Exception {
+        List<Tuple> result = queryFactory
+                .select(member.username, Expressions.constant("A"))
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+        //위와 같이 최적화가 가능하면 SQL에 constant 값을 넘기지 않는다. 상수를 더하는 것 처럼 최적화가
+        //어려우면 SQL에 constant 값을 넘긴다.
+    }
+
+    /**
+     * 문자열 더하기 concat
+     * member.age.stringValue() 부분이 중요한데, 문자가 아닌 다른 타입들은 stringValue() 로
+     * 문자로 변환할 수 있다. 이 방법은 ENUM을 처리할 때도 자주 사용한다.
+     */
+    @Test
+    public void concat() throws Exception{
+        //{username}_{age} 형태로 표시하려한다.
+        String result = queryFactory
+                .select(member.username.concat("_").concat(member.age.stringValue())) // age의 타입을 string으로 맞춰주고 concat시킨다.
+                .from(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+            System.out.println("result = " + result);
+
+    }
 
 }
 
