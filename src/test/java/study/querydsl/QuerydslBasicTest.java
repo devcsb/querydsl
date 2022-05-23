@@ -619,9 +619,47 @@ public class QuerydslBasicTest {
                 .fetchOne();
 
             System.out.println("result = " + result);
-
     }
 
+    /**
+     * 프로젝션 대상이 하나면 타입을 명확하게 지정할 수 있음
+     * 프로젝션 대상이 둘 이상이면 튜플이나 DTO로 조회
+     */
+    @Test
+    public void simpleProjection() throws Exception{
+        List<String> result = queryFactory
+                .select(member.username)
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    /**
+     * 튜플 조회 => 프로젝션 대상이 둘 이상일 때 사용
+     * 튜플은 querydsl 객체. 도메인 계층을 벗어나서 사용하는 것은 좋지 않다.
+     */
+    @Test
+    public void tupleProjection() throws Exception {
+        List<Tuple> result = queryFactory
+                .select(member.username, member.age)
+                .from(member)
+                .fetch();
+
+        for (Tuple tuple : result) {
+            String username = tuple.get(member.username); // 튜플에서 값 꺼내기
+            Integer age = tuple.get(member.age);
+            System.out.println("username = " + username);
+            System.out.println("age = " + age);
+        }
+    }
+
+
+
+
 }
+
 
 
