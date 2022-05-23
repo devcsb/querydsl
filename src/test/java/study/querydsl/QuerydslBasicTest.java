@@ -7,10 +7,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.entity.Member;
-import study.querydsl.entity.QMember;
-import study.querydsl.entity.QTeam;
 import study.querydsl.entity.Team;
 
 import javax.persistence.EntityManager;
@@ -18,7 +17,6 @@ import javax.persistence.EntityManager;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static study.querydsl.entity.QMember.*;
 import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.*;
 
@@ -227,7 +225,7 @@ public class QuerydslBasicTest {
      * from Member m
      */
     @Test
-    public void aggregation() throws Exception{
+    public void aggregation() throws Exception {
         //given
         List<Tuple> result = queryFactory  //Querydsl 튜플로 반환. 데이터 타입이 여러개이므로...  // 실무에서는 Dto로 직접 뽑아오는 방식을 많이 사용한다.
                 .select(
@@ -253,7 +251,7 @@ public class QuerydslBasicTest {
      * 팀의 이름과 각 팀의 평균 연령을 구해라.
      */
     @Test
-    public void group() throws Exception{
+    public void group() throws Exception {
         //given
         List<Tuple> result = queryFactory
                 .select(team.name, member.age.avg())
@@ -278,7 +276,7 @@ public class QuerydslBasicTest {
      * 팀 A에 소속된 모든 회원을 찾기
      */
     @Test
-    public void join() throws Exception{
+    public void join() throws Exception {
         //given
         List<Member> result = queryFactory
                 .selectFrom(member)
@@ -298,10 +296,11 @@ public class QuerydslBasicTest {
      * 외부 조인 불가능 -> 조인 on을 사용하면 외부 조인 가능
      */
     @Test
-    public void theta_join() throws Exception{
+    public void theta_join() throws Exception {
         //given
         em.persist(new Member("teamA"));
         em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
 
         //when
         List<Member> result = queryFactory
@@ -314,9 +313,66 @@ public class QuerydslBasicTest {
         assertThat(result)
                 .extracting("username")
                 .containsExactly("teamA", "teamB");
-
     }
 
 
+    /**
+     * 예) 회원과 팀을 조인하면서, 팀 이름이 teamA인 팀만 조인, 회원은 모두 조회
+     * JPQL: SELECT m, t FROM Member m LEFT JOIN m.team t on t.name = 'teamA'
+     * SQL: SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.TEAM_ID=t.id and t.name='teamA'
+     */
+    @Test
+    public void join_on_filtering() throws Exception {
+        //given
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+                .leftJoin(member.team, team)
+                .on(team.name.eq("teamA")) //outer join일 경우 조인대상(team)을 필터링하는 on 절
+//                .where(team.name.eq("teamA"))  // inner join일 때는 on절을 익숙한 where절로 대체 가능
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+//     결과:  tuple = [Member(id=3, username=member1, age=10), Team(id=1, name=teamA)]
+//            tuple = [Member(id=4, username=member2, age=20), Team(id=1, name=teamA)]
+//            tuple = [Member(id=5, username=member3, age=30), null]
+//            tuple = [Member(id=6, username=member4, age=40), null]
+    }
+
+    /**
+     * 연관관계 없는 엔티티 외부 조인
+     * 예 ) 회원의 이름과 팀의 이름이 같은 대상 외부 조인
+     * JPQL : SELECT m, t FROM Member m LEFT JOIN m.team t on t.name = 'teamA'
+     * SQL : SELECT m.*, t.* FROM Member m LEFT JOIN Team t ON m.TEAM_ID=t.id and t.name='teamA'
+     */
+    @Test
+    public void join_on_no_relation() throws Exception {
+        //given
+        em.persist(new Member("teamA"));
+        em.persist(new Member("teamB"));
+        em.persist(new Member("teamC"));
+
+        List<Tuple> result = queryFactory
+                .select(member, team)
+                .from(member)
+//                .leftJoin(member.team, team)  //연관관계 있는 경우의 조인. 이렇게 하면 join on절에 id값이 들어가면서 매칭된다. join(조인대상, alias Q타입.)
+                .leftJoin(team) // 막 조인 하는 경우. 조인대상 엔티티의 Qtype만 명시.
+                .on(member.username.eq(team.name))
+                .fetch();
+
+        for (Tuple tuple : result) {
+            System.out.println("tuple = " + tuple);
+        }
+
+//  결과: t=[Member(id=3, username=member1, age=10), null]
+//        t=[Member(id=4, username=member2, age=20), null]
+//        t=[Member(id=5, username=member3, age=30), null]
+//        t=[Member(id=6, username=member4, age=40), null]
+//        t=[Member(id=7, username=teamA, age=0), Team(id=1, name=teamA)]
+//        t=[Member(id=8, username=teamB, age=0), Team(id=2, name=teamB)]
+
+    }
 
 }
