@@ -13,6 +13,8 @@ import study.querydsl.entity.Member;
 import study.querydsl.entity.Team;
 
 import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceUnit;
 
 import java.util.List;
 
@@ -374,5 +376,47 @@ public class QuerydslBasicTest {
 //        t=[Member(id=8, username=teamB, age=0), Team(id=2, name=teamB)]
 
     }
+
+
+    @PersistenceUnit
+    EntityManagerFactory emf;
+
+    /**
+     * 페치 조인 미적용
+     * 지연로딩으로 Member, Team SQL 쿼리 각각 실행
+     */
+    @Test
+    public void fetchJoinNo() throws Exception {
+        em.flush();
+        em.clear();
+
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        boolean loaded = emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam()); //해당 객체가 이미 로딩된 엔티티인지 아닌지 판별
+        assertThat(loaded).as("페치 조인 미적용").isFalse();
+    }
+
+    /**
+     * 페치 조인 적용
+     * 즉시로딩으로 Member, Team SQL 쿼리 조인으로 한번에 조회
+     */
+    @Test
+    public void fetchJoinUse() throws Exception {
+        em.flush();
+        em.clear();
+
+        Member findMember = queryFactory
+                .selectFrom(member)
+                .join(member.team, team).fetchJoin() //연관된 team을 한 쿼리로 한번에 끌고온다.
+                .where(member.username.eq("member1"))
+                .fetchOne();
+
+        boolean loaded = emf.getPersistenceUnitUtil().isLoaded(findMember.getTeam()); //해당 객체가 이미 로딩(초기화)된 엔티티인지 아닌지 판별
+        assertThat(loaded).as("페치 조인 적용").isTrue();
+    }
+
 
 }
