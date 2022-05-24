@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.dto.MemberDto;
 import study.querydsl.dto.QMemberDto;
@@ -864,7 +865,68 @@ public class QuerydslBasicTest {
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
 
+    /**
+     * 벌크연산은 영속성컨텍스트를 거치지 않고 DB에 바로 연산하므로, 영속성 컨텍스트는 그대로이다. -> 트랜잭션 내에서 db와 영속성 컨텍스트 불일치 문제 발생!
+     */
+    @Test
+    public void bulkUpdate() throws Exception {
 
+        long count = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        // 벌크연산 수행으로 DB에서 값이 이렇게 변경됨
+        // 1 member1 -> 1 DB 비회원
+        // 2 member2 -> 2 DB 비회원
+        // 3 member3 -> 3 DB member3
+        // 4 member4 -> 4 DB member4
+
+        /* 따라서 벌크연산시, db와 영속성컨텍스트 불일치 문제 해결을 위해 flush, clear로 초기화 해주자! */
+
+        em.flush();
+        em.clear();
+
+        List<Member> result = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+        /* db에서 가져온 값을 영속성컨텍스트에 넣어줘야하는데, 이미 영속성 컨텍스트에는 member1,2,3,4가 모두 있음.
+        * 영속성 컨텍스트에 중복값(id로 판별)이 이미 있으면, DB에서 가져온 값은 버리고, 영속성 컨텍스트의 값을 그대로 유지시킨다.
+        * */
+
+        for (Member member : result) {
+            System.out.println("member = " + member);
+        }
+        // JPA 는 1차 캐시를 통해서 데이터베이스가 아닌 애플리케이션 레벨에서 Repeatable Read를 제공
+        // 영속성 컨텍스트에서 가져온 값 :
+//        member = Member(id=3, username=member1, age=10)
+//        member = Member(id=4, username=member2, age=20)
+//        member = Member(id=5, username=member3, age=30)
+//        member = Member(id=6, username=member4, age=40)
+    }
+
+    /*벌크연산 - 값에 곱하기, 더하기 연산 */
+    @Test
+    public void bulkAdd() throws Exception{
+        long count = queryFactory
+                .update(member)
+                .set(member.age, member.age.add(1))
+                .execute();
+//        더하기 : add(x) // update member set age = age + x
+//        곱하기 : multiply(x) // update member set age = age * x
+    }
+
+    /*벌크연산 - 삭제 */
+    @Test
+    public void bulkDelete() throws Exception{
+        long count = queryFactory
+                .delete(member)
+                .where(member.age.gt(18))
+                .execute();
+
+    }
 }
 
 
