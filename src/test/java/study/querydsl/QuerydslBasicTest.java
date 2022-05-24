@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.dto.MemberDto;
+import study.querydsl.dto.QMemberDto;
 import study.querydsl.dto.UserDto;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
@@ -767,13 +768,36 @@ public class QuerydslBasicTest {
         List<UserDto> result = queryFactory
                 .select(Projections.constructor(UserDto.class,  // UserDto의 타입에 맞게 순서를 맞춰서 조회해야한다.
                         member.username,
-                        member.age))
+                        member.age))  //ex)... , member.id)) // Dto 필드에 없는 값을 추가로 조회하려고 해도, 컴파일 단계에선 알 수 없으므로, 런타임 단계에서 오류가 발생한다.
                 .from(member)
                 .fetch();
         for (UserDto userDto : result) {
             System.out.println("userDto = " + userDto);
         }
     }
+
+
+    /*
+     * @QueryProjection 활용 (생성자를 활용 + Q파일 활용)
+     * 이 방법은 컴파일러로 타입을 체크할 수 있으므로 가장 안전한 방법이다. 다만 DTO에 QueryDSL
+     * 어노테이션을 유지해야 하는 점과 DTO까지 Q 파일을 생성해야 하는 단점이 있다.
+     */
+    @Test
+    public void findDtoByQueryProjection() throws Exception{
+
+        List<MemberDto> result = queryFactory
+//                .select(new QMemberDto(member.username, member.age, member.id)) // 컴파일 단계에서 오류 발생! Q파일의 생성자에서 이미 username와 age만 받을 수 있게 선언되어있으므로.
+                .select(new QMemberDto(member.username, member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+
+    }
+
+
 
 
 
