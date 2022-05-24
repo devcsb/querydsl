@@ -925,8 +925,51 @@ public class QuerydslBasicTest {
                 .delete(member)
                 .where(member.age.gt(18))
                 .execute();
-
     }
+
+    /**
+     * SQL function 호출하기
+     * SQL function은 JPA와 같이 Dialect에 등록된 내용만 호출할 수 있다.
+     * ex) H2사용시 H2Dialect.java에 명시되어있는 함수만 사용가능. 사용자 설정 가능
+     */
+    @Test
+    public void sqlFunction() throws Exception{
+        List<String> result = queryFactory
+                .select(
+                        Expressions.stringTemplate(
+                                "function('replace', {0}, {1}, {2})",
+                                member.username,"member", "M"))
+                .from(member)
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+    /**
+     * 소문자로 변경해서 비교해라.
+     */
+    @Test
+    public void sqlFunction2() throws Exception{
+        List<String> result = queryFactory
+                .select(member.username)
+                .from(member)
+//                .where(member.username.eq(  // lower 같은 ansi 표준 함수들은 querydsl이 상당부분 내장하고 아래와 같이 변경 가능.
+//                        Expressions.stringTemplate("function('lower', {0})", member.username)))
+                .where(member.username.eq(member.username.lower()))
+                .fetch();
+
+        for (String s : result) {
+            System.out.println("s = " + s);
+        }
+    }
+
+
+
+
+
+
 }
 
 
