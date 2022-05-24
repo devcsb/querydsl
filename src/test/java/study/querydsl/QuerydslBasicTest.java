@@ -2,6 +2,8 @@ package study.querydsl;
 
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
+import com.querydsl.core.types.ExpressionUtils;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
@@ -12,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+import study.querydsl.dto.MemberDto;
+import study.querydsl.dto.UserDto;
 import study.querydsl.entity.Member;
 import study.querydsl.entity.QMember;
 import study.querydsl.entity.Team;
@@ -69,8 +73,8 @@ public class QuerydslBasicTest {
 
     @Test
     public void startQuesydsl() throws Exception {
-//        JPAQueryFactory queryFactory = new JPAQueryFactory(em);  // 1. JPAQueryFactory 생성 .. 필드로 빼내고, beforeg함수에서 생성
-//        QMember m = new QMember("m1");  // 2. Qmember 생성. // 같은 테이블을 join 하는 경우에만 구분을 위해 이렇게 선언해서 사용하고, 보통은 기본 QType을 사용
+//        JPAQueryFactory queryFactory = new JPAQueryFactory(em);  // 1. JPAQueryFactory 생성 .. 필드로 빼내고, before 함수에서 생성
+//        QMember m = new QMember("m1");  // 2. Qmember 생성. // 같은 테이블을 join, 서브쿼리 사용하는 경우에만 구분을 위해 이렇게 선언해서 사용하고, 보통은 기본 QType을 사용
 
         Member findMember = queryFactory
                 .select(member)  // 따로 선언 없이 기본 Q-type인 Qmember.member를 static import하여 사용.
@@ -539,7 +543,7 @@ public class QuerydslBasicTest {
 
     /**
      * 복잡한 조건의 경우. new CaseBuilder() 생성하여 . when(QType.속성~) ~ then ~
-     * <p>
+     *
      * ********** case문 대신, row data를 가져와서 애플리케이션 단에서 처리하자! **********
      */
     @Test
@@ -653,6 +657,121 @@ public class QuerydslBasicTest {
             Integer age = tuple.get(member.age);
             System.out.println("username = " + username);
             System.out.println("age = " + age);
+        }
+    }
+
+    /**
+     * 순수 JPA에서 DTO 조회
+     * - 순수 JPA에서 DTO를 조회할 때는 new 명령어를 사용해야함
+     * - DTO의 package 이름을 다 적어줘야해서 지저분함
+     * - 생성자 방식만 지원함
+     */
+    @Test
+    public void findDtoByJPQL() throws Exception{
+
+//        em.createQuery("select m.username, m.age from Member m", MemberDto.class);  // JPQL이 Member Entity를 조회하므로 리턴 타입이 맞지 않다!
+        List<MemberDto> result = em.createQuery("select new study.querydsl.dto.MemberDto(m.username, m.age) from Member m", MemberDto.class)
+                .getResultList();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    /**
+     * Querydsl 빈 생성 - 방법 1 : 프로퍼티 접근 - Setter 활용
+     *
+     * Projections.bean(타입, 꺼내올 값(...))
+     * 조회한 결과값을 bean에 담아,setter로 Dto에 injection 하고, getter로 다시 꺼내온다.
+     */
+    @Test
+    public void findDtoBySetter() throws Exception {
+
+        List<MemberDto> result = queryFactory
+                .select(Projections.bean(MemberDto.class,
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    /**
+     * Querydsl Bean 생성 - 방법 2 : 필드 직접 접근
+     * Projections.fields(타입, 꺼내올 값(...)) // 필드에 바로 주입
+     */
+    @Test
+    public void findDtoByField() throws Exception {
+
+        List<MemberDto> result = queryFactory
+                .select(Projections.fields(MemberDto.class,  // 필드에 직접 접근. getter, setter가 필요없다.
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    /**
+     * name이라는 필드명을 가진 UserDto를 사용하려면, Qmember의 username과 별칭이 다르므로 에러 발생.
+     * 별칭이 다를 때, .as("Dto의 필드명")으로 직접 지정해주면 된다.
+     */
+    @Test
+    public void findUserDto() throws Exception {
+        QMember memberSub = new QMember("memberSub");
+
+        List<UserDto> result = queryFactory
+                .select(Projections.fields(UserDto.class,  // 필드에 직접 접근. getter, setter가 필요없다.
+                        member.username.as("name"),  // .as("Dto 필드명")
+
+                        ExpressionUtils.as(JPAExpressions  // ExpressionUtils.as(서브쿼리, alias) 로 서브쿼리에 별칭을 지정해준다
+                                .select(memberSub.age.max())
+                                .from(memberSub), "age")
+                        ))
+                .from(member)
+                .fetch();
+
+        for (UserDto userDto : result) {
+            System.out.println("userDto = " + userDto);
+        }
+    }
+
+    /**
+     * Querydsl Bean 생성 - 방법 3 : 생성자 접근
+     * Projections.constructor(타입, 꺼내올 값(...))  // Dto 필드 타입의 순서에 맞게 조회해야 한다.
+     */
+    @Test
+    public void findDtoByConstructor() throws Exception {
+        List<MemberDto> result = queryFactory
+                .select(Projections.constructor(MemberDto.class,  // MemberDto의 타입에 맞게 순서를 맞춰서 조회해야한다.
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+        for (MemberDto memberDto : result) {
+            System.out.println("memberDto = " + memberDto);
+        }
+    }
+
+    /**
+     * 방법 3 : 생성자 접근 - UserDto 활용. 생성자 접근 방식은 타입으로 판별하기 떄문에 타입의 순서만 잘 맞춰주면 된다.
+     */
+    @Test
+    public void findUserDtoByConstructor() throws Exception {
+        List<UserDto> result = queryFactory
+                .select(Projections.constructor(UserDto.class,  // UserDto의 타입에 맞게 순서를 맞춰서 조회해야한다.
+                        member.username,
+                        member.age))
+                .from(member)
+                .fetch();
+        for (UserDto userDto : result) {
+            System.out.println("userDto = " + userDto);
         }
     }
 
