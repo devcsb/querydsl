@@ -41,9 +41,6 @@ class MemberJpaRepositoryTest {
         assertThat(result2).containsExactly(member);
     }
 
-    /**
-     * 동적쿼리 작동 테스트 - BooleanBuilder 사용
-     */
     @Test
     public void searchTest() throws Exception{
 
@@ -64,8 +61,8 @@ class MemberJpaRepositoryTest {
 
         MemberSearchCondition condition = new MemberSearchCondition();
         condition.setAgeGoe(35);
-//        condition.setAgeLoe(40);
-//        condition.setTeamName("");
+        condition.setAgeLoe(40);
+//        condition.setTeamName("teamB");
 //        condition.setUsername("3");
 
         List<Member> result = memberJpaRepository.findMember(condition);

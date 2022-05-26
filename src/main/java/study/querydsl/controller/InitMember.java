@@ -32,8 +32,8 @@ public class InitMember {
 
         @Transactional
         public void init() {
-            Team teamA = new Team("TeamA");
-            Team teamB = new Team("TeamB");
+            Team teamA = new Team("teamA");
+            Team teamB = new Team("teamB");
             em.persist(teamA);
             em.persist(teamB);
 
