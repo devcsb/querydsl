@@ -2,7 +2,11 @@ package study.querydsl.repository;
 
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.support.PageableExecutionUtils;
 import study.querydsl.dto.MemberSearchCondition;
 import study.querydsl.dto.MemberTeamDto;
 import study.querydsl.dto.QMemberTeamDto;
@@ -42,6 +46,50 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                 )
                 .fetch();
     }
+
+    /**
+     * 스프링 데이터 페이징 활용
+     * content 쿼리를 페이징해서 가져오고 count 쿼리는 따로 구하는 방식.
+     * content 쿼리와 count 쿼리를 분리하여 최적화가 가능하다.
+     * count가 0이면 content 쿼리를 실행하지 않는다거나, 메서드로 분리해서 리팩토링 하는 등등..
+     */
+    @Override
+    public Page<MemberTeamDto> searchPage(MemberSearchCondition condition, Pageable pageable) { // 스프링 데이터 jpa의 pageable 상속
+
+        List<MemberTeamDto> content = queryFactory  // ctrl + alt + M으로 추출 가능
+                .select(new QMemberTeamDto(
+                        member.id,
+                        member.username,
+                        member.age,
+                        team.id,
+                        team.name))
+                .from(member)
+                .leftJoin(member.team, team)  // join(조인 대상, 대상의 Q타입)
+                .where(usernameEq(condition.getUsername()),
+                        teamNameEq(condition.getTeamName()),
+                        ageGoe(condition.getAgeGoe()),
+                        ageLoe(condition.getAgeLoe())
+                )
+                .offset(pageable.getOffset()) // 몇 번째부터 시작할지
+                .limit(pageable.getPageSize()) // 한 번 조회에 몇 개 까지 가져올지
+                .fetch();
+
+        //카운트를 구하는 쿼리. fetch() 없이 쿼리만 작성해서 PageableExecutionUtils로 넘긴다.
+        JPAQuery<Long> countQuery = queryFactory
+                .select(member.count())
+                .from(member)
+                .leftJoin(member.team, team)
+                .where(usernameEq(condition.getUsername()),
+                        teamNameEq(condition.getTeamName()),
+                        ageGoe(condition.getAgeGoe()),
+                        ageLoe(condition.getAgeLoe())
+                );
+
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+
+    }
+
+
 
     private BooleanBuilder usernameEq(String username) {
         return nullSafeBuilder(() -> member.username.eq(username));
