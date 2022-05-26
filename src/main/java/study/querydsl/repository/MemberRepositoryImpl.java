@@ -91,10 +91,7 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
         * 위의 경우, count 쿼리를 생략하고 content 쿼리만으로 count를 구한다.
         * */
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
-
     }
-
-
 
     private BooleanBuilder usernameEq(String username) {
         return nullSafeBuilder(() -> member.username.eq(username));
