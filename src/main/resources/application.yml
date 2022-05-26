@@ -15,4 +15,4 @@ spring:
 
 logging.level:
   org.hibernate.SQL: debug
-#  org.hibernate.type: trace  //더 편하게 보기 위해 p6spy 라이브러리 추가
+#  org.hibernate.type: trace  # 더 편하게 보기 위해 p6spy 라이브러리 추가

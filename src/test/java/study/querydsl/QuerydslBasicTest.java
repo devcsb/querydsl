@@ -4,20 +4,16 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.QueryResults;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.ExpressionUtils;
-import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.Commit;
 import org.springframework.transaction.annotation.Transactional;
 import study.querydsl.dto.MemberDto;
 import study.querydsl.dto.QMemberDto;
@@ -31,7 +27,6 @@ import javax.persistence.EntityManagerFactory;
 import javax.persistence.PersistenceUnit;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static study.querydsl.entity.QMember.member;
 import static study.querydsl.entity.QTeam.team;
@@ -847,21 +842,32 @@ public class QuerydslBasicTest {
     private List<Member> searchMember2(String usernameCond, Integer ageCond) {
         return queryFactory
                 .selectFrom(member)
-                .where(usernameEq(usernameCond), ageEq(ageCond)) // 가독성이 매우 좋다.
+                .where(usernameEq(usernameCond),ageEq(ageCond)) // 가독성이 매우 좋다.
 //                .where(allEq(usernameCond, ageCond)) //조건을 조합한 조건을 사용가능
                 .fetch();
     }
     // 재사용할 수 있도록 메서드를 추출하여 사용
-    private BooleanExpression usernameEq(String usernameCond) {
-        return usernameCond != null ? member.username.eq(usernameCond) : null; // where 절에 null은 무시되므로, 자연스레 동적쿼리가 만들어짐
+    private BooleanBuilder usernameEq(String usernameCond) {
+//        return usernameCond != null ? member.username.eq(usernameCond) : null; // where 절에 null은 무시되므로, 자연스레 동적쿼리가 만들어짐
+        //값이 null일 경우에도 new Booleanbuilder();를 반환하여 계속적으로 조건을 체이닝할 수 있도록 개선하였음.
+        if (usernameCond == null) {
+            return new BooleanBuilder();
+        } else {
+            return new BooleanBuilder(member.username.eq(usernameCond));
+        }
     }
 
-    private BooleanExpression ageEq(Integer ageCond) {
-        return ageCond != null ? member.age.eq(ageCond) : null;
+    private BooleanBuilder ageEq(Integer ageCond) {
+//        return ageCond != null ? member.age.eq(ageCond) : null;
+        if (ageCond == null) {
+            return new BooleanBuilder();
+        } else {
+            return new BooleanBuilder(member.age.eq(ageCond));
+        }
     }
 
-    // 검색조건 조합 가능 (null처리는 따로 해야함)
-    private BooleanExpression allEq(String usernameCond, Integer ageCond){
+    // 검색조건 조합 가능 (usernameCond가 null경우, 뒤의 조건에 체이닝이 되지 않음. 이를 해결한 자세한 코드는 DynamicQueryTest에 따로 작성하였음.)
+    private BooleanBuilder allEq(String usernameCond, Integer ageCond){
         return usernameEq(usernameCond).and(ageEq(ageCond));
     }
 

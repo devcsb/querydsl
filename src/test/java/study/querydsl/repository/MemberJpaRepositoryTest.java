@@ -41,9 +41,8 @@ class MemberJpaRepositoryTest {
         assertThat(result2).containsExactly(member);
     }
 
-
     /**
-     * 동적쿼리 작동 테스트
+     * 동적쿼리 작동 테스트 - BooleanBuilder 사용
      */
     @Test
     public void searchTest() throws Exception{
@@ -65,12 +64,15 @@ class MemberJpaRepositoryTest {
 
         MemberSearchCondition condition = new MemberSearchCondition();
         condition.setAgeGoe(35);
-        condition.setAgeLoe(40);
-        condition.setTeamName("teamB");
+//        condition.setAgeLoe(40);
+//        condition.setTeamName("");
+//        condition.setUsername("3");
 
-        List<MemberTeamDto> result = memberJpaRepository.searchByBuilder(condition);
+        List<Member> result = memberJpaRepository.findMember(condition);
 
-        assertThat(result).extracting("username").containsExactly("member4");
+        for (Member member : result) {
+            System.out.println("member = " + member);
+        }
+//        assertThat(result).extracting("username").containsExactly("member4");
     }
-
 }
