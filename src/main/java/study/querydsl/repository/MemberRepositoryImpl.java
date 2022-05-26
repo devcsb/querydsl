@@ -83,8 +83,13 @@ public class MemberRepositoryImpl implements MemberRepositoryCustom {
                         teamNameEq(condition.getTeamName()),
                         ageGoe(condition.getAgeGoe()),
                         ageLoe(condition.getAgeLoe())
-                );
-
+                ); // fetchCount()는 deprecated 되었으므로, 위와 같이 따로 count 구하는 쿼리를 날려서 사용.
+        /*
+        * 페이징 쿼리를 최적화 시켜주는 PageableExecutionUtils. getPage()
+        * 1. 페이지 시작이면서 컨텐츠 사이즈가 페이지 사이즈보다 작을 때,
+        * 2. 마지막 페이지 일 때 (offset + 컨텐츠 사이즈를 더해서 전체 사이즈 구함)
+        * 위의 경우, count 쿼리를 생략하고 content 쿼리만으로 count를 구한다.
+        * */
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
 
     }
