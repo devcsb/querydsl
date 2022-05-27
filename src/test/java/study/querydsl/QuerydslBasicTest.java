@@ -339,7 +339,7 @@ public class QuerydslBasicTest {
                 .select(member, team)
                 .from(member)
                 .leftJoin(member.team, team)
-                .on(team.name.eq("teamA")) //outer join일 경우 조인대상(team)을 필터링하는 on 절
+                .on(team.name.eq("teamA")) // join일 경우 조인대상(team)을 필터링하는 on 절
 //                .where(team.name.eq("teamA"))  // inner join일 때는 on절을 익숙한 where절로 대체 가능
                 .fetch();
 
