@@ -7,7 +7,6 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.support.Querydsl;
 import org.springframework.data.jpa.repository.support.QuerydslRepositorySupport;
 import org.springframework.data.support.PageableExecutionUtils;
 import study.querydsl.dto.MemberSearchCondition;
@@ -15,7 +14,6 @@ import study.querydsl.dto.MemberTeamDto;
 import study.querydsl.dto.QMemberTeamDto;
 import study.querydsl.entity.Member;
 
-import javax.persistence.EntityManager;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -99,9 +97,6 @@ public class MemberRepositoryImpl extends QuerydslRepositorySupport implements M
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
 
-
-
-
     /**
      * QuerydslRepositorySupport를 활용한 querydsl 작성.
      * 장점 : 1. 페이징을 조금 편리하게 할 수 있다. 2. EntityManager를 제공한다.
@@ -131,7 +126,7 @@ public class MemberRepositoryImpl extends QuerydslRepositorySupport implements M
     /**
      * QuerydslRepositorySupport를 활용하여 offset, limit 없이 페이징 하기
      * offset(pageable.getOffset()), limit(pageable.getPageSize()) 두 줄이 줄어드는 대신,
-     * 메서드 체이닝이 끊기고 다시 두줄 추가되므로, 이익이 별로 없음
+     * 메서드 체이닝이 끊기는 단점이 존재.
      */
     public Page<MemberTeamDto> searchPage2(MemberSearchCondition condition, Pageable pageable) { // 스프링 데이터 jpa의 pageable 상속
 
