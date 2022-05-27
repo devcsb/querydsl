@@ -103,7 +103,6 @@ class MemberRepositoryTest {
         assertThat(result.getContent()).extracting("username").containsExactly("member1", "member2", "member3");
     }
 
-
     /**
      * 스프링데이터JPA의 QuerydslPredicateExecutor의 한계점.
      * 조인X (묵시적 조인은 가능하지만 left join이 불가능하다.)
@@ -135,8 +134,6 @@ class MemberRepositoryTest {
         for (Member findMember : result) {
             System.out.println("findMember = " + findMember);
         }
-
-
     }
 
 
